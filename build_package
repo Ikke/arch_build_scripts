@@ -1,0 +1,165 @@
+#!/bin/bash
+
+source /usr/share/makepkg/util/message.sh
+source /etc/makepkg.conf
+
+arches=('x86_64' 'armv7h')
+repo_path=/data/repo
+repo_name=custom.db.tar.xz
+
+colorize
+
+pkg_filename ()
+{
+    local pkgname=$1
+    local arch=$2
+
+    pkg_filename=$pkgname-$pkgver-$pkgrel-$arch.pkg.tar.xz
+    printf $pkg_filename
+}
+
+check_makedeps()
+{
+    local makedepends=$@
+
+    msg "Checking make dependencies"
+
+    local missing_deps=$(pacman -T ${makedepends[@]})
+
+    if [[ -z $missing_deps ]]
+    then
+        msg2 "All dependencies installed"
+        return 0
+    fi
+
+
+    msg2 "Dependencies missing: $missing_deps"
+    echo -n "Should they be installed? [Yn] "
+    read answer
+
+    if [[ -z $answer || $answer == "Y" || $answer == "y" ]]
+    then
+        sudo pacman -S $missing_deps --noconfirm
+    fi
+}
+
+add_pkgs_to_repo ()
+{
+    local version=$1; shift
+    local rel=$1; shift
+    local arch=$1; shift
+    local packages="$@"
+    
+    msg "Adding packages to repository"
+
+    if [[ $arch == any ]]
+    then
+        local pkg_arches=$arches
+    else
+        local pkg_arches=($arch)
+    fi
+
+    for pkg_arch in $pkg_arches
+    do
+        msg2 $pkg_arch
+
+        local -a copied_pkgs=()
+
+        for pkg in $packages
+        do
+            local new_pkg_name="$pkg-$version-$rel-$arch.pkg.tar.xz"
+
+            remove_pkgs $repo_path/$pkg_arch $pkg
+            copy_package $pkg_arch $new_pkg_name
+
+            copied_pkgs+=($new_pkg_name)
+        done
+
+        msg2 "Updating repo %s for %s" $repo_name $pkg_arch
+        (cd $repo_path/$pkg_arch && repo-add --verify --sign $repo_name ${copied_pkgs[@]})
+    done
+}
+
+copy_package ()
+{
+    local arch=$1
+    local pkg=$2
+
+    cp $pkg "$repo_path/$arch" || exit 1
+    if [[ -f $pkg.sig ]]
+    then
+        cp $pkg.sig "$repo_path/$arch"
+    fi
+}
+
+remove_pkgs ()
+{
+    local path=$1
+    local name=$2
+
+    local existing_pkgs=($(ls $path | grep -E "^$name-[0-9]+\..+pkg\.tar\.xz$"))
+
+    for found_pkg in $existing_pkgs
+    do
+        rm $path/$found_pkg
+        rm $path/$found_pkg.sig 2>/dev/null
+    done
+}
+
+sign_pkgs ()
+{
+    local arch=$1; shift
+    local -a packages="$@"
+    msg "Signing packages"
+
+    for pkg in ${packages[@]}
+    do
+        msg2 $pkg
+        file_name=$(pkg_filename $pkg $arch)
+        gpg --detach-sign --use-agent --no-armor "$file_name"  || exit 1
+    done
+}
+
+if [[ ! -f PKGBUILD ]]
+then
+    error "Could not find PKGBUILD"
+    exit 1
+fi
+
+source PKGBUILD
+
+if [[ ${arch[0]} == "any" ]]
+then
+    build_arch=any
+else
+    build_arch=$CARCH
+fi
+
+main_package_file=$(pkg_filename ${pkgname[0]} $build_arch)
+
+if [[ -f $main_package_file ]]
+then
+    msg "Package already build"
+fi
+
+check_makedeps ${makedepends[@]}
+
+msg "Building package"
+
+makepkg -d -f --noconfirm
+
+if [[ $? -ne 0 ]]
+then
+    echo "Something went wrong with building the package"
+    exit 1
+fi
+
+sign_pkgs $build_arch ${pkgname[@]}
+
+echo -n "Package has been built. Add to repository? [Yn] "
+read answer
+
+if [[ -z $answer || $answer == "Y" || $answer == "y" ]]
+then
+    add_pkgs_to_repo $pkgver $pkgrel $build_arch ${pkgname[@]}
+fi

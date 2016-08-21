@@ -1,0 +1,28 @@
+#!/bin/bash
+
+quiet=${1-''}
+
+pkg_name=$(basename $PWD)
+url=https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${pkg_name}
+
+current_ver=$(grep pkgver= PKGBUILD | cut -f2 -d'=')
+latest_ver=$(curl -s $url | grep pkgver= | cut -f2 -d'=')
+
+if [[ "$current_ver" == "$latest_ver" ]]
+then
+  if [[ "$quiet" != "-q" ]]
+  then
+    echo "up-to-date"
+  fi
+  exit 0
+else
+  if [[ "$quiet" != "-q" ]]
+  then
+    echo "Out of date"
+    echo "Current: $current_ver"
+    echo "Latest: $latest_ver"
+  fi
+  exit 1
+fi
+  
+  

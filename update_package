@@ -1,0 +1,5 @@
+#!/bin/bash
+
+pkgname=$(basename $PWD)
+
+(cd ..; yaourt -G $pkgname)
