@@ -47,6 +47,21 @@ confirm ()
     esac
 }
 
+parse_opt ()
+{
+    while getopts "fb" opt
+    do
+        case $opt in
+        f)
+            force_build=1
+            ;;
+        b)
+            batch=1
+            ;;
+        esac
+    done
+}
+
 pkg_filename ()
 {
     local pkgname=$1
@@ -178,6 +193,8 @@ sign_pkgs ()
     done
 }
 
+parse_opt $@
+
 if [[ ! -f PKGBUILD ]]
 then
     error "Could not find PKGBUILD"
@@ -199,10 +216,14 @@ SKIP_BUILD=0
 
 if [[ -f $main_package_file ]]
 then
-    if confirm "Package already exists. Skip building?"
+    if [[ $batch -eq 1 || $force_build -eq 1 ]]
     then
-        SKIP_BUILD=1
-    fi
+        SKIP_BUILD=$([[ $force_build -eq 1 ]] && echo 0 || echo 1)
+    else
+        if confirm "Package already exists. Skip building?"
+        then
+            SKIP_BUILD=1
+        fi
     fi
 fi
 
@@ -223,7 +244,7 @@ then
     sign_pkgs $build_arch ${pkgname[@]}
 fi
 
-if confirm "Package has been built. Add to repository?"
+if [[ $batch -eq 1 ]] || confirm "Package has been built. Add to repository?"
 then
     add_pkgs_to_repo $pkgver $pkgrel $build_arch ${pkgname[@]}
 fi
