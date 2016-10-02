@@ -7,7 +7,45 @@ arches=('x86_64' 'armv7h')
 repo_path=/data/repo
 repo_name=custom.db.tar.xz
 
+#options
+force_build=0
+batch=0
+
 colorize
+
+confirm ()
+{
+    question=$1
+    default=${2-0}
+
+    if [[ $default -eq 0 ]]
+    then
+        hint="[Y/n]"
+        ret=1
+    else
+        hint="[y/N]"
+        ret=0
+    fi
+
+    echo -n "$question $hint (\"A\" to abort) "
+    read -sn 1 answer
+    echo
+
+    case $answer in
+        y|Y)
+            return 0
+            ;;
+        n|N)
+            return 1
+            ;;
+        A)
+            msg "Aborting"
+            exit
+            ;;
+        *)
+            return $ret
+    esac
+}
 
 pkg_filename ()
 {
@@ -34,10 +72,7 @@ check_makedeps()
 
 
     msg2 "Dependencies missing: $missing_deps"
-    echo -n "Should they be installed? [Yn] "
-    read answer
-
-    if [[ -z $answer || $answer == "Y" || $answer == "y" ]]
+    if confirm "Should they be installed?"
     then
         sudo pacman -S $missing_deps --noconfirm
     fi
@@ -164,12 +199,10 @@ SKIP_BUILD=0
 
 if [[ -f $main_package_file ]]
 then
-    echo -n "Package already exists. Skip building? [Yn] "
-    read answer
-
-    if [[ -z $answer || $answer == "Y" || $answer == "y" ]]
+    if confirm "Package already exists. Skip building?"
     then
         SKIP_BUILD=1
+    fi
     fi
 fi
 
@@ -183,17 +216,14 @@ then
 
     if [[ $? -ne 0 ]]
     then
-    echo "Something went wrong with building the package"
-    exit 1
+        echo "Something went wrong with building the package"
+        exit 1
     fi
 
     sign_pkgs $build_arch ${pkgname[@]}
 fi
 
-echo -n "Package has been built. Add to repository? [Yn] "
-read answer
-
-if [[ -z $answer || $answer == "Y" || $answer == "y" ]]
+if confirm "Package has been built. Add to repository?"
 then
     add_pkgs_to_repo $pkgver $pkgrel $build_arch ${pkgname[@]}
 fi
