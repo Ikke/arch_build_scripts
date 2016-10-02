@@ -67,7 +67,18 @@ add_pkgs_to_repo ()
 
         for pkg in $packages
         do
-            local new_pkg_name="$pkg-$version-$rel-$arch.pkg.tar.xz"
+            local new_pkg_name=$(pkg_filename $pkg $arch)
+
+            if [[ ! -f $new_pkg_name ]]
+            then
+                new_pkg_name=$(pkg_filename $pkg any)
+
+                if [[ ! -f $new_pkg_name ]]
+                then
+                    error "Could not find package files for $pkg"
+                    exit 1
+                fi
+            fi
 
             remove_pkgs $repo_path/$pkg_arch $pkg
             copy_package $pkg_arch $new_pkg_name
@@ -116,6 +127,18 @@ sign_pkgs ()
     do
         msg2 $pkg
         file_name=$(pkg_filename $pkg $arch)
+
+        if [[ ! -f $file_name ]]
+        then
+            file_name=$(pkg_filename $pkg any)
+
+            if [[ ! -f $file_name ]]
+            then
+                error "Could not find package files for $pkg"
+                exit 1
+            fi
+        fi
+
         gpg --detach-sign --use-agent --no-armor "$file_name"  || exit 1
     done
 }
