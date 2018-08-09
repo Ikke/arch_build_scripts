@@ -5,14 +5,17 @@ quiet=${1-''}
 pkg_name=$(basename $PWD)
 url=https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=${pkg_name}
 
-current_ver=$(grep pkgver= PKGBUILD | cut -f2 -d'=')
-latest_ver=$(curl -s $url | grep pkgver= | cut -f2 -d'=')
+current_ver=$(source PKGBUILD && echo $pkgver)
+
+tmp_file=$(mktemp)
+latest_ver=$(curl -sf $url -o $tmp_file && source $tmp_file && echo $pkgver)
+rm $tmp_file
 
 if [[ "$current_ver" == "$latest_ver" ]]
 then
   if [[ "$quiet" != "-q" ]]
   then
-    echo "up-to-date"
+    echo "up-to-date: $current_ver"
   fi
   exit 0
 else
