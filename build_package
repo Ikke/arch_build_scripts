@@ -240,7 +240,7 @@ then
 
     msg "Building package"
 
-    makepkg -d -f --noconfirm
+    makepkg -srcf --noconfirm
 
     if [[ $? -ne 0 ]]
     then
