@@ -96,7 +96,7 @@ check_makedeps()
     msg2 "Dependencies missing: $missing_deps"
     if confirm "Should they be installed?"
     then
-        sudo pacman -S $missing_deps --noconfirm
+        sudo pacman -S $missing_deps --noconfirm || return $?
     fi
 }
 
@@ -236,7 +236,7 @@ fi
 
 if [[ $SKIP_BUILD -eq 0 ]]
 then
-    check_makedeps ${makedepends[@]}
+    check_makedeps ${makedepends[@]} || { error "Could not install all makedepends"; exit $?; }
 
     msg "Building package"
 
