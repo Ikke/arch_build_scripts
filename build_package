@@ -165,7 +165,7 @@ remove_pkgs ()
     local path=$1
     local name=$2
 
-    local existing_pkgs=($(ls $path | grep -E "^$name-[0-9]+\..+pkg\.tar\.xz$"))
+    local existing_pkgs=($(ls $path | grep -E "^$name-v?[0-9]+\..+pkg\.tar\.xz$"))
 
     for found_pkg in $existing_pkgs
     do
