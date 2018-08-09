@@ -66,8 +66,15 @@ pkg_filename ()
 {
     local pkgname=$1
     local arch=$2
+    local pkg_filename
+    local pkg_epoch
 
-    pkg_filename=$pkgname-$pkgver-$pkgrel-$arch.pkg.tar.xz
+    if [[ ! -z $epoch ]]
+    then
+        pkg_epoch="$epoch:"
+    fi
+
+    pkg_filename=$pkgname-$pkg_epoch$pkgver-$pkgrel-$arch.pkg.tar.xz
     printf $pkg_filename
 }
 
